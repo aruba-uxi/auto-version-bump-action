@@ -4,6 +4,10 @@ inputs:
   bump-version-github-token:
     description: "A personal access token allowed to commit to the protected main branch"
     required: true
+  bump-version-config:
+    description: "The bumpversion.cfg file to use for version bumps"
+    required: false
+    default: .bumpversion-server.cfg
 
 runs:
   using: "composite"
@@ -42,5 +46,5 @@ runs:
       run: |
         git config --global user.name "Continuous Versioner"
         git config --global user.email "github-actions@users.noreply.github.com"
-        bumpversion --config-file=.bumpversion-server.cfg ${{ steps.bumpversion_type.outputs.result }}
+        bumpversion --config-file=${{ inputs.bump-version-config }} ${{ steps.bumpversion_type.outputs.result }}
         git push
