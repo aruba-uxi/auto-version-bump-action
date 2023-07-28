@@ -1,0 +1,50 @@
+name: "Auto Bump Server Version"
+description: "Bump server version based on last commit"
+inputs:
+  bump-version-github-token:
+    description: "A personal access token allowed to commit to the protected main branch"
+    required: true
+  bump-version-config:
+    description: "The bumpversion.cfg file to use for version bumps"
+    required: false
+    default: .bumpversion-server.cfg
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+      with:
+        token: ${{ inputs.bump-version-github-token }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Install Dependencies
+      run: pip install bumpversion commitizen
+
+    - name: Decide version increment from the last commit
+      id: bumpversion_type
+      run: |
+        echo "result=$(python -c '
+        from commitizen.bump import find_increment
+        from commitizen.git import get_commits
+        from commitizen.cz.conventional_commits import ConventionalCommitsCz
+
+        increment = find_increment(
+            [get_commits()[0]],
+            regex=ConventionalCommitsCz.bump_pattern,
+            increments_map=ConventionalCommitsCz.bump_map
+        )
+        print(increment.lower() if increment else "patch")
+        ')" >> $GITHUB_OUTPUT
+
+    - name: Bump server version and commit
+      if: github.event.pull_request.merged == true
+      run: |
+        git config --global user.name "Continuous Versioner"
+        git config --global user.email "github-actions@users.noreply.github.com"
+        bumpversion --config-file=${{ inputs.bump-version-config }} ${{ steps.bumpversion_type.outputs.result }}
+        git push
